@@ -8,14 +8,17 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+addEventListener('fetch', event => {
+	event.respondWith(handleRequest(event));
+  });
+  
   /**
    * Handle Request
    * @param {FetchEvent} event
    * @returns {Promise<Response>}
    */
-  async function handleRequest(request, environment, context) {
-	//const { request } = event;
-	console.log(JSON.stringify(request))
+  async function handleRequest(event) {
+	const { request } = event;
   
 	// Check if the request method is POST
 	if (request.method !== 'POST') {
@@ -29,61 +32,41 @@
 	}
   
 	// Get Gemini API Key from Environment Variable
-	const GEMINI_API_KEY = environment.MY_GEMINI_API_KEY; // Replace with your worker's environment variable name
-	//console.log(GEMINI_API_KEY)
+	const GEMINI_API_KEY = MY_GEMINI_API_KEY; // Replace with your worker's environment variable name
+  
 	try {
-		// Read the Base64 encoded image data from the request body
-		const requestBody = await request.json(); // Expect JSON with "image" field
-		const imageBase64WithPrefix = requestBody.image;
-	
-		// Check if imageBase64WithPrefix is present
-		if (!imageBase64WithPrefix) {
-		  return new Response(JSON.stringify({ error: "Missing 'image' field in request body" }), {
-			status: 400,
-			headers: { 'Content-Type': 'application/json' }
-		  });
-		}
-	
-		// Remove the "data:image/jpeg;base64," prefix if it exists
-		let imageBase64 = imageBase64WithPrefix;
-		const base64PrefixRegex = /^data:image\/(jpeg|png|gif);base64,/;
-	
-		if (base64PrefixRegex.test(imageBase64WithPrefix)) {
-			imageBase64 = imageBase64WithPrefix.replace(base64PrefixRegex, '');
-		}
-	
-		// Determine the image mime type from the prefix (if present) or assume jpeg
-		let mimeType = 'image/jpeg';
-		const match = imageBase64WithPrefix.match(/^data:(image\/(jpeg|png|gif));base64,/);
-		if (match && match[2]) {
-		  mimeType = `image/${match[2]}`;
-		}
-	
-    // Construct the Gemini API request
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`;
-
-    const requestBodyGemini = {
-      contents: [{
-        parts: [
-          {
-            text: "Extract the text from this image.  Return only the extracted text. No need for explanations."
-          },
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: imageBase64
-            }
-          }
-        ]
-      }]
-    };
+	  // Read the image data from the request body (as a Blob)
+	  const imageBlob = await request.blob();
+  
+	  // Convert the Blob to a Base64 encoded string
+	  const imageBase64 = await blobToBase64(imageBlob);
+  
+	  // Construct the Gemini API request
+	  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`;
+  
+	  const requestBody = {
+		contents: [{
+		  parts: [
+			{
+			  text: "Extract the text from this image.  Return only the text. No additional explanations needed."
+			},
+			{
+			  inlineData: {
+				mimeType: imageBlob.type,  // e.g., "image/jpeg", "image/png"
+				data: imageBase64.split(',')[1]  // Remove the "data:image/jpeg;base64," prefix
+			  }
+			}
+		  ]
+		}]
+	  };
+  
   
 	  const fetchOptions = {
 		method: 'POST',
 		headers: {
 		  'Content-Type': 'application/json'
 		},
-		body: JSON.stringify(requestBodyGemini)
+		body: JSON.stringify(requestBody)
 	  };
   
 	  // Make the API Request
@@ -127,10 +110,16 @@
   }
   
   
-  
-export default {
-	async fetch(request, environment, context) {
-		console.log("inda worker, long time no see")
-		return await handleRequest(request, environment, context)
-	}
-}  
+  /**
+   * Helper function to convert a Blob to a Base64 string.
+   * @param {Blob} blob
+   * @returns {Promise<string>}
+   */
+  async function blobToBase64(blob) {
+	return new Promise((resolve, reject) => {
+	  const reader = new FileReader();
+	  reader.onloadend = () => resolve(reader.result);
+	  reader.onerror = reject;
+	  reader.readAsDataURL(blob);
+	});
+  }

@@ -15,7 +15,8 @@
    */
   async function handleRequest(request, environment, context) {
 	//const { request } = event;
-	console.log(JSON.stringify(request))
+	console.log("in handle request")
+	//console.log(request)
   
 	// Check if the request method is POST
 	if (request.method !== 'POST') {
@@ -30,7 +31,7 @@
   
 	// Get Gemini API Key from Environment Variable
 	const GEMINI_API_KEY = environment.MY_GEMINI_API_KEY; // Replace with your worker's environment variable name
-	//console.log(GEMINI_API_KEY)
+	console.log(GEMINI_API_KEY)
 	try {
 		// Read the Base64 encoded image data from the request body
 		const requestBody = await request.json(); // Expect JSON with "image" field
@@ -59,63 +60,90 @@
 		  mimeType = `image/${match[2]}`;
 		}
 	
-    // Construct the Gemini API request
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`;
+		// Construct the Gemini API request
+		//const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`;
+		const apiUrl = `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`
+		/*
+		const requestBodyGemini = {
+			contents: [{
+				parts: [
+					{
+						text: "Extract the text from this image.  Return only the extracted text. No need for explanations."
+					},
+					{
+						inlineData: {
+						mimeType: mimeType,
+						data: imageBase64
+						}
+					}
+				]
+			}]
+		};
+		*/
 
-    const requestBodyGemini = {
-      contents: [{
-        parts: [
-          {
-            text: "Extract the text from this image.  Return only the extracted text. No need for explanations."
-          },
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: imageBase64
-            }
-          }
-        ]
-      }]
-    };
-  
-	  const fetchOptions = {
-		method: 'POST',
-		headers: {
-		  'Content-Type': 'application/json'
-		},
-		body: JSON.stringify(requestBodyGemini)
-	  };
-  
-	  // Make the API Request
-	  const response = await fetch(apiUrl, fetchOptions);
-  
-	  // Check for Errors
-	  if (!response.ok) {
+		console.log("Image len:", imageBase64WithPrefix.length)
+		const messages = [
+			{
+			  "role": "user",
+			  "content": [
+				{
+				  "type": "text",
+				  "text": "Extract the text from this Croatian ID card.  Return only the extracted text. No need for explanations.",
+				},
+				{
+				  "type": "image_url",
+				  "image_url": {
+					"url": imageBase64WithPrefix
+				  },
+				},
+			  ],
+			}
+		];
+		
+		//console.log("Messages", messages)
+		const requestBodyGemini = {
+			//model: "gemini-2.0-flash",
+			//model: "gemini-2.5-pro-preview-05-06",
+			model: "gemini-2.5-flash-preview-04-17",
+			messages: messages
+		}
+	
+
+		//console.log("body:", JSON.stringify(requestBodyGemini))
+
+		const fetchOptions = {
+			method: 'POST',
+			headers: {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${GEMINI_API_KEY}`
+			},
+			body: JSON.stringify(requestBodyGemini)
+		};
+	
+		// Make the API Request
+		const response = await fetch(apiUrl, fetchOptions);
+	
+		// Check for Errors
+		if (!response.ok) {
 		console.error('Gemini API error:', response.status, response.statusText);
+		console.log(response)
 		return new Response(JSON.stringify({ error: `Gemini API Error: ${response.status} ${response.statusText}` }), {
-		  status: response.status,
-		  headers: { 'Content-Type': 'application/json' }
+			status: response.status,
+			headers: { 'Content-Type': 'application/json' }
 		});
-	  }
+	}
   
-	  // Parse the Response
-	  const data = await response.json();
-  
-	  // Extract the generated text
-	  let extractedText = "";
-  
-	  if (data && data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0) {
-		extractedText = data.candidates[0].content.parts[0].text;
-	  } else {
-		console.warn("Unexpected Gemini API response format:", data);
-		extractedText = "No text found in the image or error parsing response.";
-	  }
-  
-  
-	  // Return the extracted text as JSON
-	  return new Response(JSON.stringify({ text: extractedText }), {
+	// Parse the Response
+	const data = await response.json();
+
+	console.log("Received response!")
+	console.log(data.choices[0].message)
+	const responseText = data.choices[0].message
+	// Extract the generated text
+	// Return the extracted text as JSON
+	return new Response(JSON.stringify({ text: responseText }), {
 		headers: { 'Content-Type': 'application/json' },
-	  });
+	});
   
 	} catch (error) {
 	  console.error('Error:', error);
@@ -131,6 +159,7 @@
 export default {
 	async fetch(request, environment, context) {
 		console.log("inda worker, long time no see")
+		//console.log(request)
 		return await handleRequest(request, environment, context)
 	}
 }  

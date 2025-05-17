@@ -12,6 +12,7 @@ def encode_image(image_path):
     Returns:
         A string containing the Base64 encoded image data with the mime type prefix.
     """
+
     try:
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
@@ -62,7 +63,8 @@ def post_image_to_worker(worker_url, image_path):
         return None
 
 if __name__ == "__main__":
-    worker_url = "https://esp32.perkovickarlo5.workers.dev/"  # Replace with your Cloudflare Worker URL
+    #worker_url = "https://esp32.perkovickarlo5.workers.dev/"  # Replace with your Cloudflare Worker URL
+    worker_url = "http://localhost:8787"
     image_path = "proba_slike.jpg"  # Replace with the path to your image file
 
     result = post_image_to_worker(worker_url, image_path)

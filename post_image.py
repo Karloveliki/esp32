@@ -2,6 +2,7 @@ import requests
 import base64
 import json
 import mimetypes
+import sys
 
 def encode_image(image_path):
     """Encodes an image to Base64 format.
@@ -62,10 +63,24 @@ def post_image_to_worker(worker_url, image_path):
         print(f"An unexpected error occurred: {e}")
         return None
 
+# python post_image <slika> <local ili cloudflare>
+
+
 if __name__ == "__main__":
     #worker_url = "https://esp32.perkovickarlo5.workers.dev/"  # Replace with your Cloudflare Worker URL
     worker_url = "http://localhost:8787"
-    image_path = "proba_slike.jpg"  # Replace with the path to your image file
+    if len(sys.argv) > 1:
+        image_path = sys.argv[1]  # Replace with the path to your image file
+    else:
+        image_path="proba_slike.jpg"
+
+    if (len(sys.argv) > 2) and sys.argv[2]=="local":
+        worker_url= "http://localhost:8787"
+    
+    if (len(sys.argv) > 2) and sys.argv[2]=="cloudflare":
+        worker_url = "https://esp32.perkovickarlo5.workers.dev/"
+
+
 
     result = post_image_to_worker(worker_url, image_path)
 

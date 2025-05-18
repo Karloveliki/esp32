@@ -78,7 +78,7 @@ if __name__ == "__main__":
         worker_url= "http://localhost:8787"
     
     if (len(sys.argv) > 2) and sys.argv[2]=="cloudflare":
-        worker_url = "https://esp32.perkovickarlo5.workers.dev/"
+        worker_url = "http://evidencija.uslugaizdoma.online/image"
 
 
 

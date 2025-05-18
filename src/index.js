@@ -8,14 +8,95 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+//-------------------------------------
+const ocrInstructions = `You are an expert in optical character recognition (OCR) and data extraction.  Your task is to analyze the provided image of a Croatian identity card and extract the following information.
+
+Extract the following fields. If a field is not clearly visible or cannot be confidently determined, mark its value as "null".  Ensure that the extracted values are accurate and reflect the information present in the image.
+
+*   Ime (First Name):
+*   Prezime (Last Name):
+*   Datum rodenja (Date of Birth) [YYYY-MM-DD]:
+*   Mjesto rodenja (Place of Birth):
+*   Broj osobne iskaznice (ID Card Number):
+
+Return the extracted information as a JSON object with the field names as keys. Ensure that the JSON is valid and parsable.  Do not include any introductory or explanatory text outside the JSON.
+Return ONLY a JSON object. The JSON should be formatted without any surrounding text, explanations, or code fences.
+    
+Return ONLY a valid JSON object that conforms to the following JSON Schema:
+
+\`\`\`json
+{
+"type": "object",
+"properties": {
+    "ime": { "type": "string" },
+    "prezime": { "type": "string" },
+    "datumRodenja": { "type": "string", "format": "date" },
+    "mjestoRodenja": { "type": ["string", "null"] },
+    "brojOsobneIskaznice": { "type": ["string", "null"] }
+},
+"required": ["ime", "prezime", "datumRodenja"]
+}
+\`\`\`
+
+Here's an example of the JSON format I expect:
+
+\`\`\`json
+{{
+    "ime": "John",
+    "prezime": "Doe",
+    "datumRodenja": "1990-01-01",
+    "mjestoRodenja": "Zagreb",
+    "brojOsobneIskaznice": "AB1234567"
+}}
+\`\`\`
+
+I need ONLY a JSON object. Do not include any surrounding text, code fences, or explanations. Just the JSON. I want the JSON object to contain the following keys: Ime, Prezime, Datum rodenja, Mjesto rodenja, Broj osobne iskaznice. Represent missing values as null. I repeat: ONLY the JSON object.
+Just the JSON data.
+
+`;
+
+function extractJsonObject(inputString) {
+	try {
+	  // Find the first occurrence of '{'
+	  const startIndex = inputString.indexOf('{');
+  
+	  // If no '{' is found, return null or handle the error as needed.
+	  if (startIndex === -1) {
+		throw Error("invalid json")
+	  }
+
+  
+	  // Extract the substring starting from the first '{'
+	  let jsonString = inputString.substring(startIndex);
+	  
+	  const lastClosingBraceIndex = jsonString.lastIndexOf('}');
+
+	  if (lastClosingBraceIndex === -1) {
+		throw Error("invalid json")
+	  }
+	  jsonString=jsonString.substring(0, lastClosingBraceIndex + 1);
+	  // Attempt to parse the extracted string as JSON. This is crucial to validate
+	  // that you've actually extracted a valid JSON object.  If it's not valid,
+	  // the 'try...catch' will handle it.
+	  JSON.parse(jsonString);
+  
+	  return jsonString;  // If parsing succeeds, it's a valid JSON string.
+  
+	} catch (error) {
+	  // Handle potential JSON parsing errors (e.g., incomplete JSON, invalid characters).
+	  console.error("Error parsing JSON:", error);
+	  return null; // Or throw the error, depending on your error handling strategy.
+	}
+  }
+
+   //-------------------------------------------------
   /**
    * Handle Request
    * @param {FetchEvent} event
    * @returns {Promise<Response>}
    */
   async function handleRequest(request, environment, context) {
-	//const { request } = event;
-	console.log("in handle request")
+	//const { request } = event
 	//console.log(request)
   
 	// Check if the request method is POST
@@ -31,7 +112,6 @@
   
 	// Get Gemini API Key from Environment Variable
 	const GEMINI_API_KEY = environment.MY_GEMINI_API_KEY; // Replace with your worker's environment variable name
-	console.log(GEMINI_API_KEY)
 	try {
 		// Read the Base64 encoded image data from the request body
 		const requestBody = await request.json(); // Expect JSON with "image" field
@@ -81,14 +161,14 @@
 		};
 		*/
 
-		console.log("Image len:", imageBase64WithPrefix.length)
+		
 		const messages = [
 			{
 			  "role": "user",
 			  "content": [
 				{
 				  "type": "text",
-				  "text": "Extract the text from this Croatian ID card.  Return only the extracted text. No need for explanations.",
+				  "text": ocrInstructions,
 				},
 				{
 				  "type": "image_url",
@@ -122,11 +202,10 @@
 	
 		// Make the API Request
 		const response = await fetch(apiUrl, fetchOptions);
-	
 		// Check for Errors
 		if (!response.ok) {
 		console.error('Gemini API error:', response.status, response.statusText);
-		console.log(response)
+		
 		return new Response(JSON.stringify({ error: `Gemini API Error: ${response.status} ${response.statusText}` }), {
 			status: response.status,
 			headers: { 'Content-Type': 'application/json' }
@@ -136,12 +215,14 @@
 	// Parse the Response
 	const data = await response.json();
 
-	console.log("Received response!")
-	console.log(data.choices[0].message)
-	const responseText = data.choices[0].message
+	const responseText = data.choices[0].message.content
+
+	const cleaned = extractJsonObject(responseText)
+	
+	
 	// Extract the generated text
 	// Return the extracted text as JSON
-	return new Response(JSON.stringify({ text: responseText }), {
+	return new Response(cleaned, {
 		headers: { 'Content-Type': 'application/json' },
 	});
   
@@ -158,7 +239,6 @@
   
 export default {
 	async fetch(request, environment, context) {
-		console.log("inda worker, long time no see")
 		//console.log(request)
 		return await handleRequest(request, environment, context)
 	}

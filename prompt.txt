@@ -1,0 +1,44 @@
+
+    You are an expert in optical character recognition (OCR) and data extraction.  Your task is to analyze the provided image of a Croatian identity card and extract the following information.
+
+    Extract the following fields. If a field is not clearly visible or cannot be confidently determined, mark its value as "null".  Ensure that the extracted values are accurate and reflect the information present in the image.
+
+    *   Ime (First Name):
+    *   Prezime (Last Name):
+    *   Datum rodenja (Date of Birth) [YYYY-MM-DD]:
+    *   Mjesto rodenja (Place of Birth):
+    *   Broj osobne iskaznice (ID Card Number):
+
+    Return the extracted information as a JSON object with the field names as keys. Ensure that the JSON is valid and parsable.  Do not include any introductory or explanatory text outside the JSON.
+    Return ONLY a JSON object. The JSON should be formatted without any surrounding text, explanations, or code fences.
+    
+    Return ONLY a valid JSON object that conforms to the following JSON Schema:
+
+    ```json
+    {
+    "type": "object",
+    "properties": {
+        "ime": { "type": "string" },
+        "prezime": { "type": "string" },
+        "datumRodenja": { "type": "string", "format": "date" },
+        "mjestoRodenja": { "type": ["string", "null"] },
+        "brojOsobneIskaznice": { "type": ["string", "null"] }
+    },
+    "required": ["ime", "prezime", "datumRodenja"]
+    }
+    ```
+
+    Here's an example of the JSON format I expect:
+
+    ```json
+    {{
+        "ime": "John",
+        "prezime": "Doe",
+        "datumRodenja": "1990-01-01",
+        "mjestoRodenja": "Zagreb",
+        "brojOsobneIskaznice": "AB1234567"
+    }}
+    ```
+    I need ONLY a JSON object. Do not include any surrounding text, code fences, or explanations. Just the JSON. I want the JSON object to contain the following keys: Ime, Prezime, Datum rodenja, Mjesto rodenja, Broj osobne iskaznice. Represent missing values as null. I repeat: ONLY the JSON object.
+    Just the JSON data.
+   

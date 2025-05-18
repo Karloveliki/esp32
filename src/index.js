@@ -16,7 +16,6 @@ Extract the following fields. If a field is not clearly visible or cannot be con
 *   Ime (First Name):
 *   Prezime (Last Name):
 *   Datum rodenja (Date of Birth) [YYYY-MM-DD]:
-*   Mjesto rodenja (Place of Birth):
 *   Broj osobne iskaznice (ID Card Number):
 
 Return the extracted information as a JSON object with the field names as keys. Ensure that the JSON is valid and parsable.  Do not include any introductory or explanatory text outside the JSON.
@@ -31,7 +30,6 @@ Return ONLY a valid JSON object that conforms to the following JSON Schema:
     "ime": { "type": "string" },
     "prezime": { "type": "string" },
     "datumRodenja": { "type": "string", "format": "date" },
-    "mjestoRodenja": { "type": ["string", "null"] },
     "brojOsobneIskaznice": { "type": ["string", "null"] }
 },
 "required": ["ime", "prezime", "datumRodenja"]
@@ -45,10 +43,11 @@ Here's an example of the JSON format I expect:
     "ime": "John",
     "prezime": "Doe",
     "datumRodenja": "1990-01-01",
-    "mjestoRodenja": "Zagreb",
     "brojOsobneIskaznice": "AB1234567"
 }}
 \`\`\`
+
+Encode croatian charachters with utf-8.
 
 I need ONLY a JSON object. Do not include any surrounding text, code fences, or explanations. Just the JSON. I want the JSON object to contain the following keys: Ime, Prezime, Datum rodenja, Mjesto rodenja, Broj osobne iskaznice. Represent missing values as null. I repeat: ONLY the JSON object.
 Just the JSON data.

@@ -22,6 +22,8 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <FS.h>
+#include <HTTPClient.h>
+#include <Base64-X.h>
 
 // Replace with your network credentials
 const char* ssid = "A1-NE6037-BBCF20";
@@ -31,9 +33,11 @@ const char* password = "mYx%8gBS";
 AsyncWebServer server(80);
 
 boolean takeNewPhoto = false;
+boolean ocitaj = false;
 
 // Photo File Name to save in SPIFFS
 #define FILE_PHOTO "/photo.jpg"
+#define BASE64_PHOTO "/base64.json"
 
 // OV2640 camera module pins (CAMERA_MODEL_AI_THINKER)
 #define PWDN_GPIO_NUM     32
@@ -53,6 +57,10 @@ boolean takeNewPhoto = false;
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
+void streamFileAsBase64(const char* filePath);
+
+const char* serverUrl = "http://evidencija.uslugaizdoma.online/image";
+const size_t chunkSize = 2048;
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -71,6 +79,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       <button onclick="rotatePhoto();">ROTATE</button>
       <button onclick="capturePhoto()">CAPTURE PHOTO</button>
       <button onclick="location.reload();">REFRESH PAGE</button>
+      <button onclick="ocitajSliku();">Ocitaj sliku</button>
     </p>
   </div>
   <div><img src="saved-photo" id="photo" width="70%"></div>
@@ -82,6 +91,12 @@ const char index_html[] PROGMEM = R"rawliteral(
     xhr.open('GET', "/capture", true);
     xhr.send();
   }
+  function ocitajSliku() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', "/ocitaj", true);
+    xhr.send();
+  }
+
   function rotatePhoto() {
     var img = document.getElementById("photo");
     deg += 90;
@@ -95,7 +110,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 void setup() {
   // Serial port for debugging purposes
-  Serial.begin(115200);
+  Serial.begin(74880);
 
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
@@ -172,9 +187,19 @@ void setup() {
     request->send(SPIFFS, FILE_PHOTO, "image/jpg", false);
   });
 
+  server.on("/ocitaj", HTTP_GET, [](AsyncWebServerRequest * request) {
+    ocitaj = true;
+    request->send(200, "text/plain", "Taking Photo");
+  });
+
+
   // Start server
   server.begin();
-
+  Serial.println("---------------------");
+  
+  Serial.println("------------------------");
+  Serial.println(esp_get_free_heap_size());
+  Serial.println("------------------------");
 }
 
 void loop() {
@@ -182,6 +207,11 @@ void loop() {
     capturePhotoSaveSpiffs();
     takeNewPhoto = false;
   }
+  if (ocitaj) {
+    ocitajSliku();
+    ocitaj = false;
+  }
+
   delay(1);
 }
 
@@ -225,9 +255,181 @@ void capturePhotoSaveSpiffs( void ) {
     }
     // Close the file
     file.close();
+
+    // spremanje slike u base64 encodingu iz fb->buf u drugu datoteku FILE_PHOTO.base64
+    File f =SPIFFS.open(BASE64_PHOTO, FILE_WRITE);
+    
+    if (!f) {
+      Serial.println("Failed to open file in writing mode");
+    }
+    else{
+      //int velicina=konacnaVelicina(fb->len)+10;
+      Base64Class Base64;
+      int encodedLength = Base64.encodedLength(fb->len);
+      char *char_ptr = (char*)malloc(encodedLength * sizeof(char)+10);
+
+      Base64.encode(char_ptr,(char*)(fb->buf), fb->len);
+      char prelude[] = "{\"image\": \""; 
+      char postlude[]= "\"}";
+      f.write((const uint8_t *)prelude,strlen(prelude));
+      f.write((const uint8_t *)char_ptr, encodedLength);
+      f.write((const uint8_t *)postlude,strlen(postlude));
+      f.close();
+      free(char_ptr);
+    }
     esp_camera_fb_return(fb);
 
     // check if file has been correctly saved in SPIFFS
     ok = checkPhoto(SPIFFS);
   } while ( !ok );
 }
+
+// sliku iz spfissa posalji workeru i pricekaj rezultat, te ga ispis
+void ocitajSliku() {  
+  Serial.println("Ocitavamje slike u tijeku ...");
+  streamFileAsBase64(FILE_PHOTO);
+  Serial.println("Slika je ocitana.");
+}
+
+int konacnaVelicina( int fileSize){
+  int remainder=fileSize%3;
+  int naEnkodiranPlus=0;
+  if (remainder != 0){
+    naEnkodiranPlus=naEnkodiranPlus+4;
+  }
+  int velicina=(fileSize/3)*4+naEnkodiranPlus;
+  return velicina;
+}
+
+void streamFileAsBase64(const char* filePath){
+   HTTPClient http;
+  /* File file = SPIFFS.open(imagePath, "r");
+
+   if (!file) {
+    Serial.println("Failed to open image file for reading!");
+    return;
+  }
+  */
+ 
+
+}
+
+/*
+void streamFileAsBase64X(const char* filePath) {
+  File file = SPIFFS.open(filePath, "r");
+  if (!file) {
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+
+  size_t fileSize = file.size();
+  Serial.print("File size: ");
+  Serial.println(fileSize);
+
+  HTTPClient http;
+  WiFiClient client;
+
+  http.begin(client,serverUrl);
+  http.addHeader("Content-Type", "application/octet-stream"); // Or "text/plain" or something compatible
+
+  // Start the POST request
+  
+
+  WiFiClient* stream = http.startStream();
+
+  if (!stream) {
+    Serial.println("Failed to get stream");
+    http.end();
+    file.close();
+    return;
+  }
+   if (stream) {
+      Serial.println("Connected to server, sending request...");
+
+      // Manually construct and send the request
+      String request = "POST  /image HTTP/1.1\r\n";
+      request += "Host: evidencija.uslugaizdoma.online\r\n";
+      request += "Content-Type: application/json\r\n";
+      request += "Content-Length: 0\r\n"; //  Important if no body
+      request += "Connection: close\r\n"; // Consider using "keep-alive" if making repeated requests
+      request += "\r\n"; // Crucial to signal the end of the header
+
+      
+   }
+  uint8_t* chunkBuffer = new uint8_t[chunkSize];
+  if (!chunkBuffer) {
+    Serial.println("Failed to allocate memory for chunk buffer");
+    http.end();
+    file.close();
+    return;
+  }
+
+  size_t bytesRead;
+  while ((bytesRead = file.readBytes(chunkBuffer, chunkSize)) > 0) {
+      // Encode chunk to base64
+      size_t encodedLength = base64_enc_len(bytesRead);
+      char* encodedChunk = new char[encodedLength + 1]; // +1 for NULL
+      if (!encodedChunk) {
+          Serial.println("Failed to allocate memory for encoded chunk");
+          delete[] chunkBuffer;
+          http.end();
+          file.close();
+          return;
+      }
+
+      int encodedBytes = base64_encode(encodedChunk, (char*)chunkBuffer, bytesRead); // cast to (char*)
+      if (encodedBytes < 0) {
+          Serial.println("Encoding failed!");
+          delete[] chunkBuffer;
+          delete[] encodedChunk;
+          http.end();
+          file.close();
+          return;
+      }
+      encodedChunk[encodedBytes] = '\0';
+int koko[10000];
+      // Send the encoded chunk directly to the stream
+      stream->print(encodedChunk);
+
+      String response = "";
+      while (stream->available()) {
+        response += (char)stream->read();
+      }
+      Serial.println("Response:");
+      Serial.println(response);
+
+      // Clean up
+      http.end(); // Close connection and release resources
+      stream->stop();
+
+      delete[] encodedChunk;  // Free the encoded chunk
+      yield();  // Yield to the ESP32's background tasks
+  }
+  else {
+      Serial.println("Failed to connect to server.");
+      http.end();
+    }
+  } else {
+    Serial.println("WiFi disconnected");
+  }
+
+  delete[] chunkBuffer;
+  file.close();
+  //http.endRequest(); // Signal the end of the request
+
+ // int httpResponseCode = http.responseStatusCode();
+  if (httpResponseCode > 0) {
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode);
+    String response = http.getString();
+    Serial.println(response);
+  } else {
+    Serial.print("Error code: ");
+    Serial.println(httpResponseCode);
+  }
+
+  http.end();
+}
+*/
+
+

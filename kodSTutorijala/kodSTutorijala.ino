@@ -246,7 +246,16 @@ void capturePhotoSaveSpiffs( void ) {
       Serial.println("Failed to open file in writing mode");
     }
     else {
-      file.write(fb->buf, fb->len); // payload (image), payload length
+      int i;
+      for(i=0;i<fb->len;i=i+1024){
+        int to_write = i+1024<=fb->len ? 1024 : fb->len - i ;
+        int writen=file.write((const uint8_t *)(fb->buf+i),to_write);
+        if(writen!=to_write){
+          Serial.println("greska");
+          Serial.println("writen:  "+String(writen)+"  to_write:   "+String(to_write));
+        }
+      } 
+      //file.write(fb->buf, fb->len); // payload (image), payload length
       Serial.print("The picture has been saved in ");
       Serial.print(FILE_PHOTO);
       Serial.print(" - Size: ");
@@ -266,13 +275,35 @@ void capturePhotoSaveSpiffs( void ) {
       //int velicina=konacnaVelicina(fb->len)+10;
       Base64Class Base64;
       int encodedLength = Base64.encodedLength(fb->len);
+
+      Serial.println("enkodirani length: " + String(encodedLength)  );
+      Serial.println("fb->len:  " + String(fb->len));
       char *char_ptr = (char*)malloc(encodedLength * sizeof(char)+10);
 
       Base64.encode(char_ptr,(char*)(fb->buf), fb->len);
-      char prelude[] = "{\"image\": \""; 
+      char prelude[] = "{\"image\": \"data:image/jpeg;base64,"; 
       char postlude[]= "\"}";
       f.write((const uint8_t *)prelude,strlen(prelude));
-      f.write((const uint8_t *)char_ptr, encodedLength);
+      //int written=f.write((const uint8_t *)char_ptr, encodedLength);
+      int i;
+      for( i=0;i<encodedLength;i=i+1024){
+        int to_write = i+1024<=encodedLength ? 1024 : encodedLength - i ;
+        int writen=f.write((const uint8_t *)(char_ptr+i),to_write);
+       // Serial.println("writen je:   "+ String(writen) + " a trebalo je:" + String(to_write));
+       if(writen!=to_write){
+          Serial.println("greska");
+          Serial.println("writen:  "+String(writen)+"  to_write:   "+String(to_write));
+        }
+        if(i==0){
+          Serial.println("Privh 128 encoded vytes: |");
+          for(int j=0;j<128;j++){
+            char blef[16];
+            sprintf(blef, " %c", char_ptr[j]);
+            Serial.print(blef);
+          }
+          Serial.println("|");
+        }
+      }
       f.write((const uint8_t *)postlude,strlen(postlude));
       f.close();
       free(char_ptr);
@@ -287,7 +318,7 @@ void capturePhotoSaveSpiffs( void ) {
 // sliku iz spfissa posalji workeru i pricekaj rezultat, te ga ispis
 void ocitajSliku() {  
   Serial.println("Ocitavamje slike u tijeku ...");
-  streamFileAsBase64(FILE_PHOTO);
+  streamFileAsBase64(BASE64_PHOTO);
   Serial.println("Slika je ocitana.");
 }
 
@@ -302,16 +333,24 @@ int konacnaVelicina( int fileSize){
 }
 
 void streamFileAsBase64(const char* filePath){
-   HTTPClient http;
-  /* File file = SPIFFS.open(imagePath, "r");
+  HTTPClient http;
+  File file = SPIFFS.open(filePath, "r");
+  http.begin(serverUrl);
+  http.addHeader("Content-Type", "application/json");
+  size_t fileSize = file.size();
+  Serial.print("filePath: "+ String(filePath));
+  Serial.print("fileSize: "+ String(fileSize));
+  int httpResponseCode = http.sendRequest("POST", &file, fileSize);
+  file.close();
 
-   if (!file) {
-    Serial.println("Failed to open image file for reading!");
-    return;
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+  
+    Serial.print("Response " + response);
   }
-  */
- 
-
+  else{
+    Serial.print("not good response");
+  }
 }
 
 /*

@@ -24,6 +24,7 @@
 #include <FS.h>
 #include <HTTPClient.h>
 #include <Base64-X.h>
+#include <ArduinoJson.h>
 
 // Replace with your network credentials
 const char* ssid = "A1-NE6037-BBCF20";
@@ -56,7 +57,7 @@ boolean ocitaj = false;
 #define VSYNC_GPIO_NUM    25
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
-
+#define JSON_DOC_SIZE 2048
 void streamFileAsBase64(const char* filePath);
 
 const char* serverUrl = "http://evidencija.uslugaizdoma.online/image";
@@ -345,12 +346,26 @@ void streamFileAsBase64(const char* filePath){
 
   if (httpResponseCode > 0) {
     String response = http.getString();
-  
+    parseJSONResponse(response);
     Serial.print("Response " + response);
   }
   else{
     Serial.print("not good response");
   }
+}
+void parseJSONResponse(const String& response) {
+  StaticJsonDocument<JSON_DOC_SIZE> doc;  // Use the same size as before, or adjust if server sends more data
+
+  DeserializationError error = deserializeJson(doc, response);
+  const char* ime = doc["ime"];
+  const char* prezime = doc["prezime"];
+  const char* datumRodjenja  = doc["datumRodenja"];
+  const char* brojOsobneIskaznice = doc["brojOsobneIskaznice"];
+
+  Serial.println("ime:   "+ String(ime));
+  Serial.println("prezime:   "+ String(prezime));
+  Serial.println("datum rođenja:   "+ String(datumRodjenja));
+  Serial.println("broj osobne iskaznice:   "+ String(brojOsobneIskaznice));
 }
 
 /*

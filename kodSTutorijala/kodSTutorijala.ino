@@ -26,9 +26,17 @@
 #include <Base64-X.h>
 #include <ArduinoJson.h>
 
+#define READY_STATE 0
+#define CAPTURING_STATE 1
+#define RECOGNIZING_STATE 2
+
+int state = READY_STATE;
+
 // Replace with your network credentials
-const char* ssid = "A1-NE6037-BBCF20";
-const char* password = "mYx%8gBS";
+//const char* ssid = "A1-NE6037-BBCF20";
+//const char* password = "mYx%8gBS";
+const char* ssid = "Xiaomi 11 Lite 5G NE";
+const char* password = "karlo0211";
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -179,6 +187,8 @@ void setup() {
     request->send(200, "text/html", index_html);
   });
 
+ // server.on()
+
   server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
     takeNewPhoto = true;
     request->send(200, "text/plain", "Taking Photo");
@@ -241,7 +251,7 @@ void capturePhotoSaveSpiffs( void ) {
       Serial.println("Camera capture failed");
       return;
     }
-
+  
     // Photo file name
     Serial.printf("Picture file name: %s\n", FILE_PHOTO);
     File file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);

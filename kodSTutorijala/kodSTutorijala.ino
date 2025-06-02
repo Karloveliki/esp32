@@ -232,6 +232,7 @@ void capturePhotoSaveSpiffs( void ) {
     // Take a photo with the camera
     Serial.println("Taking a photo...");
     // do not ask ..
+    //https://www.reddit.com/r/esp32/comments/1ac20lt/esp_32_cam_has_delayed_photo_capture/
     fb = esp_camera_fb_get();
     esp_camera_fb_return(fb);
 

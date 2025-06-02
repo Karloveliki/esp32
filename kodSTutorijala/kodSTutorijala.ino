@@ -161,7 +161,7 @@ void setup() {
   if (psramFound()) {
     config.frame_size = FRAMESIZE_UXGA;
     config.jpeg_quality = 10;
-    config.fb_count = 2;
+    config.fb_count = 1;
   } else {
     config.frame_size = FRAMESIZE_SVGA;
     config.jpeg_quality = 12;
@@ -231,6 +231,9 @@ void capturePhotoSaveSpiffs( void ) {
   do {
     // Take a photo with the camera
     Serial.println("Taking a photo...");
+    // do not ask ..
+    fb = esp_camera_fb_get();
+    esp_camera_fb_return(fb);
 
     fb = esp_camera_fb_get();
     if (!fb) {
@@ -262,9 +265,9 @@ void capturePhotoSaveSpiffs( void ) {
       Serial.print(" - Size: ");
       Serial.print(file.size());
       Serial.println(" bytes");
+      file.close();
     }
     // Close the file
-    file.close();
 
     // spremanje slike u base64 encodingu iz fb->buf u drugu datoteku FILE_PHOTO.base64
     File f =SPIFFS.open(BASE64_PHOTO, FILE_WRITE);

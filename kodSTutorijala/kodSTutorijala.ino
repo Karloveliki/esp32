@@ -336,6 +336,7 @@ int konacnaVelicina( int fileSize){
 void streamFileAsBase64(const char* filePath){
   HTTPClient http;
   File file = SPIFFS.open(filePath, "r");
+  http.setTimeout(15000); 
   http.begin(serverUrl);
   http.addHeader("Content-Type", "application/json");
   size_t fileSize = file.size();
@@ -354,6 +355,7 @@ void streamFileAsBase64(const char* filePath){
   }
 }
 void parseJSONResponse(const String& response) {
+  Serial.println("usao u parsiranje");
   StaticJsonDocument<JSON_DOC_SIZE> doc;  // Use the same size as before, or adjust if server sends more data
 
   DeserializationError error = deserializeJson(doc, response);

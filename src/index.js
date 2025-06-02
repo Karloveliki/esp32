@@ -49,7 +49,7 @@ Here's an example of the JSON format I expect:
 
 Encode croatian charachters with utf-8.
 
-I need ONLY a JSON object. Do not include any surrounding text, code fences, or explanations. Just the JSON. I want the JSON object to contain the following keys: Ime, Prezime, Datum rodenja, Mjesto rodenja, Broj osobne iskaznice. Represent missing values as null. I repeat: ONLY the JSON object.
+I need ONLY a JSON object. Do not include any surrounding text, code fences, or explanations. Just the JSON. I want the JSON object to contain the following keys: Ime, Prezime, Datum rodenja, Broj osobne iskaznice. Represent missing values as null. I repeat: ONLY the JSON object.
 Just the JSON data.
 
 `;

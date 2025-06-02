@@ -41,7 +41,8 @@ def post_image_to_worker(worker_url, image_path):
         The JSON response from the Cloudflare Worker, or None if an error occurred.
     """
     base64_image = encode_image(image_path)
-
+    print("len base64_image: ",len(base64_image))
+    print("first 128 bytes:  ",base64_image[:128])
     if base64_image is None:
         print("Image encoding failed. Aborting.")
         return None
@@ -72,7 +73,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         image_path = sys.argv[1]  # Replace with the path to your image file
     else:
-        image_path="proba_slike.jpg"
+        image_path="crniTunel.jpg"
 
     if (len(sys.argv) > 2) and sys.argv[2]=="local":
         worker_url= "http://localhost:8787"
